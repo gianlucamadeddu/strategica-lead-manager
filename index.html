@@ -1101,6 +1101,39 @@
         body.collaborator-view .collab-nav-item {
             display: flex;
         }
+        
+        /* DANGER ZONE */
+        .danger-zone {
+            border: 2px solid #fee2e2;
+            background: #fef2f2;
+        }
+        
+        .danger-zone .settings-title {
+            color: #dc2626;
+        }
+        
+        .danger-zone .settings-title svg {
+            color: #dc2626;
+        }
+        
+        .btn-danger {
+            padding: 12px 24px;
+            background: #dc2626;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+        
+        .btn-danger:hover {
+            background: #b91c1c;
+        }
     </style>
 </head>
 <body>
@@ -1458,6 +1491,37 @@
                             <!-- Statuses will be rendered here -->
                         </div>
                     </div>
+                    
+                    <!-- Gestione Dati - Danger Zone -->
+                    <div class="settings-section danger-zone">
+                        <h3 class="settings-title">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                                <line x1="12" y1="9" x2="12" y2="13"/>
+                                <line x1="12" y1="17" x2="12.01" y2="17"/>
+                            </svg>
+                            Zona Pericolosa - Gestione Dati
+                        </h3>
+                        <p style="color: #6b7280; font-size: 14px; margin-bottom: 20px;">
+                            ⚠️ <strong>Attenzione:</strong> Le azioni in questa sezione sono <strong>irreversibili</strong>. 
+                            Assicurati di aver esportato i dati prima di procedere.
+                        </p>
+                        <div style="display: flex; gap: 16px; flex-wrap: wrap; align-items: center;">
+                            <button class="btn-danger" onclick="deleteAllLeads()">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
+                                    <path d="M3 6h18"/>
+                                    <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>
+                                    <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
+                                    <line x1="10" x2="10" y1="11" y2="17"/>
+                                    <line x1="14" x2="14" y1="11" y2="17"/>
+                                </svg>
+                                Cancella TUTTI i Lead
+                            </button>
+                            <span id="leadsCount" style="color: #6b7280; font-size: 13px;">
+                                <!-- Lead count will be shown here -->
+                            </span>
+                        </div>
+                    </div>
                 </section>
             </div>
         </main>
@@ -1608,6 +1672,41 @@
         </div>
     </div>
     
+    <!-- Delete Confirmation Modal -->
+    <div class="modal-overlay" id="deleteConfirmModal">
+        <div class="modal" style="max-width:450px">
+            <div class="modal-header" style="background: #fef2f2; border-bottom-color: #fee2e2;">
+                <h3 class="modal-title" style="color: #dc2626;">
+                    ⚠️ Conferma Eliminazione
+                </h3>
+                <button class="modal-close" onclick="closeModal('deleteConfirmModal')">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
+                        <path d="M18 6 6 18"/>
+                        <path d="m6 6 12 12"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p style="font-size: 15px; color: #374151; margin-bottom: 16px;">
+                    Stai per eliminare <strong id="deleteLeadsCount">0</strong> lead. 
+                    Questa azione è <strong style="color: #dc2626;">irreversibile</strong>.
+                </p>
+                <p style="font-size: 14px; color: #6b7280; margin-bottom: 20px;">
+                    Per confermare, digita <strong style="color: #dc2626;">ELIMINA</strong> nel campo sottostante:
+                </p>
+                <div class="form-row" style="margin-bottom: 0;">
+                    <input type="text" id="deleteConfirmInput" placeholder="Digita ELIMINA per confermare" autocomplete="off" style="border-color: #fca5a5;">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('deleteConfirmModal')">Annulla</button>
+                <button class="btn-danger" id="confirmDeleteBtn" onclick="confirmDeleteAllLeads()" disabled>
+                    Elimina Tutti i Lead
+                </button>
+            </div>
+        </div>
+    </div>
+    
     <!-- Toast Notification -->
     <div class="toast" id="toast">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1657,7 +1756,18 @@
             await initializeData();
             setupNavigation();
             setupDragAndDrop();
+            setupDeleteConfirmInput();
         });
+        
+        // Setup delete confirmation input listener
+        function setupDeleteConfirmInput() {
+            const input = document.getElementById('deleteConfirmInput');
+            const btn = document.getElementById('confirmDeleteBtn');
+            
+            input.addEventListener('input', function() {
+                btn.disabled = this.value !== 'ELIMINA';
+            });
+        }
         
         // Initialize Data
         async function initializeData() {
@@ -1704,8 +1814,17 @@
                     renderPipeline();
                     renderLeadsTable();
                     renderPerformance();
+                    updateLeadsCount();
                 }
             });
+        }
+        
+        // Update leads count in settings
+        function updateLeadsCount() {
+            const countEl = document.getElementById('leadsCount');
+            if (countEl) {
+                countEl.textContent = `Attualmente ci sono ${leads.length} lead nel database`;
+            }
         }
         
         // Login Handler
@@ -1757,6 +1876,7 @@
             renderCollaboratorsList();
             renderStatusesList();
             populateCollaboratorSelects();
+            updateLeadsCount();
         }
         
         function showLoginError(message) {
@@ -2127,6 +2247,11 @@
         
         function closeModal(id) {
             document.getElementById(id).classList.remove('active');
+            // Reset delete confirmation input
+            if (id === 'deleteConfirmModal') {
+                document.getElementById('deleteConfirmInput').value = '';
+                document.getElementById('confirmDeleteBtn').disabled = true;
+            }
         }
         
         function openNewLeadModal() {
@@ -2372,6 +2497,57 @@
             
             await db.collection('statuses').doc(statusId).delete();
             showToast('Stato eliminato');
+        }
+        
+        // DELETE ALL LEADS FUNCTIONS
+        function deleteAllLeads() {
+            if (leads.length === 0) {
+                showToast('Non ci sono lead da eliminare', 'error');
+                return;
+            }
+            
+            document.getElementById('deleteLeadsCount').textContent = leads.length;
+            openModal('deleteConfirmModal');
+        }
+        
+        async function confirmDeleteAllLeads() {
+            const confirmInput = document.getElementById('deleteConfirmInput').value;
+            
+            if (confirmInput !== 'ELIMINA') {
+                showToast('Digita ELIMINA per confermare', 'error');
+                return;
+            }
+            
+            closeModal('deleteConfirmModal');
+            showToast('Eliminazione in corso...', '');
+            
+            try {
+                // Delete all leads in batches (Firestore limit is 500 per batch)
+                const batchSize = 500;
+                let deletedCount = 0;
+                
+                while (leads.length > 0) {
+                    const batch = db.batch();
+                    const leadsToDelete = leads.slice(0, batchSize);
+                    
+                    leadsToDelete.forEach(lead => {
+                        const docRef = db.collection('leads').doc(lead.id);
+                        batch.delete(docRef);
+                    });
+                    
+                    await batch.commit();
+                    deletedCount += leadsToDelete.length;
+                    
+                    // Wait for the snapshot listener to update the leads array
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                }
+                
+                showToast(`${deletedCount} lead eliminati con successo`, 'success');
+                
+            } catch (error) {
+                console.error('Errore durante l\'eliminazione:', error);
+                showToast('Errore durante l\'eliminazione', 'error');
+            }
         }
         
         // Import/Export
